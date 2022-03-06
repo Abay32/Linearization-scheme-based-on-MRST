@@ -1,0 +1,934 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>simpleIncompTPFAModefiedold</title><meta name="generator" content="MATLAB 9.0"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2019-04-24"><meta name="DC.source" content="simpleIncompTPFAModefiedold.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h2>Contents</h2><div><ul><li><a href="#3">Upwinding</a></li><li><a href="#4">Right hand side</a></li><li><a href="#5">Capillar pressure</a></li><li><a href="#6">Add up internal face transmissibilities plus Dirichlet pressure faces for each cell.</a></li><li><a href="#7">---------------------------------------------------------------------</a></li></ul></div><pre class="codeinput"><span class="keyword">function</span> [state] = simpleIncompTPFAModefiedold(state, G, rock, fluid, varargin)
+</pre><pre class="codeinput"><span class="comment">%Solve incompressible flow problem (fluxes/pressures) using TPFA method.</span>
+<span class="comment">%</span>
+<span class="comment">% SYNOPSIS:</span>
+<span class="comment">%   state = simpleIncompTPFA(state, G, hT, fluid)</span>
+<span class="comment">%   state = simpleIncompTPFA(state, G, hT, fluid, 'pn1', pv1, ...)</span>
+<span class="comment">%</span>
+<span class="comment">% DESCRIPTION:</span>
+<span class="comment">%   This function assembles and solves a (block) system of linear equations</span>
+<span class="comment">%   defining interface fluxes and cell pressures at the next time step in a</span>
+<span class="comment">%   sequential splitting scheme for the reservoir simulation problem</span>
+<span class="comment">%   defined by Darcy's law and a given set of external influences (sources,</span>
+<span class="comment">%   and boundary conditions).</span>
+<span class="comment">%</span>
+<span class="comment">%   This function uses a two-point flux approximation (TPFA) method with</span>
+<span class="comment">%   minimal memory consumption within the constraints of operating on a</span>
+<span class="comment">%   fully unstructured polyhedral grid structure.</span>
+<span class="comment">%</span>
+<span class="comment">% REQUIRED PARAMETERS:</span>
+<span class="comment">%   state  - Reservoir solution structure either properly</span>
+<span class="comment">%            initialized from function 'initResSol'</span>
+<span class="comment">%</span>
+<span class="comment">%   G, hT  - Grid and half-transmissibilities as computed by the function</span>
+<span class="comment">%            'computeTrans'.</span>
+<span class="comment">%</span>
+<span class="comment">%   fluid  - Fluid object as defined by function 'initSimpleFluid'.</span>
+<span class="comment">%</span>
+<span class="comment">% OPTIONAL PARAMETERS (supplied in 'key'/value pairs ('pn'/pv ...)):</span>
+<span class="comment">%   bc     - Boundary condition structure as defined by function 'addBC'.</span>
+<span class="comment">%            This structure accounts for all external boundary conditions to</span>
+<span class="comment">%            the reservoir flow.  May be empty (i.e., bc = struct([])) which</span>
+<span class="comment">%            is interpreted as all external no-flow (homogeneous Neumann)</span>
+<span class="comment">%            conditions.</span>
+<span class="comment">%</span>
+<span class="comment">%   src    - Explicit source contributions as defined by function</span>
+<span class="comment">%            'addSource'.  May be empty (i.e., src = struct([])) which is</span>
+<span class="comment">%            interpreted as a reservoir model without explicit sources.</span>
+<span class="comment">%</span>
+<span class="comment">%   LinSolve - Handle to linear system solver software to which the</span>
+<span class="comment">%            fully assembled system of linear equations will be passed.</span>
+<span class="comment">%            Assumed to support the syntax</span>
+<span class="comment">%</span>
+<span class="comment">%              x = LinSolve(A, b)</span>
+<span class="comment">%</span>
+<span class="comment">%            in order to solve a system Ax=b of linear equations.</span>
+<span class="comment">%            Default value: LinSolve = @mldivide (backslash).</span>
+<span class="comment">%</span>
+<span class="comment">% RETURNS:</span>
+<span class="comment">%   state - Update reservoir solution structure with new values</span>
+<span class="comment">%           for the fields:</span>
+<span class="comment">%              - pressure -- Pressure values for all cells in the</span>
+<span class="comment">%                            discretised reservoir model, 'G'.</span>
+<span class="comment">%              - facePressure --</span>
+<span class="comment">%                            Pressure values for all interfaces in the</span>
+<span class="comment">%                            discretised reservoir model, 'G'.</span>
+<span class="comment">%              - flux     -- Flux across global interfaces corresponding to</span>
+<span class="comment">%                            the rows of 'G.faces.neighbors'.</span>
+<span class="comment">%</span>
+<span class="comment">% NOTE:</span>
+<span class="comment">%   If there are no external influences, i.e., if all of the structures</span>
+<span class="comment">%   'bc' and 'src' are empty and there are no effects of gravity, then the</span>
+<span class="comment">%   input value 'xr' is returned unchanged and a warning is printed in the</span>
+<span class="comment">%   command window. This warning is printed with message ID</span>
+<span class="comment">%</span>
+<span class="comment">%           'incompTPFA:DrivingForce:Missing'</span>
+<span class="comment">%</span>
+<span class="comment">%</span>
+<span class="comment">% SEE ALSO:</span>
+<span class="comment">%   computeTrans, addBC, addSource, addWell, initSingleFluid, initResSol,</span>
+<span class="comment">%   initWellSol.</span>
+
+<span class="comment">%{
+</span><span class="comment">Copyright 2009-2016 SINTEF ICT, Applied Mathematics.
+</span><span class="comment">
+</span><span class="comment">This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
+</span><span class="comment">
+</span><span class="comment">MRST is free software: you can redistribute it and/or modify
+</span><span class="comment">it under the terms of the GNU General Public License as published by
+</span><span class="comment">the Free Software Foundation, either version 3 of the License, or
+</span><span class="comment">(at your option) any later version.
+</span><span class="comment">
+</span><span class="comment">MRST is distributed in the hope that it will be useful,
+</span><span class="comment">but WITHOUT ANY WARRANTY; without even the implied warranty of
+</span><span class="comment">MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+</span><span class="comment">GNU General Public License for more details.
+</span><span class="comment">
+</span><span class="comment">You should have received a copy of the GNU General Public License
+</span><span class="comment">along with MRST.  If not, see &lt;http://www.gnu.org/licenses/&gt;.
+</span><span class="comment">%}
+</span>
+   opt = struct(<span class="string">'bc'</span>, [], <span class="string">'src'</span>, [], <span class="keyword">...</span>
+                <span class="string">'LinSolve'</span>,     @mldivide, <span class="keyword">...</span>
+                <span class="string">'pc_form'</span>     , <span class="string">'wetting'</span>);
+
+   opt = merge_options(opt, varargin{:});
+   <span class="comment">% Sanity checks on grid and gravity term</span>
+   assert (1 &lt;= G.griddim &amp;&amp; G.griddim &lt; 4);
+   gvec = gravity();
+   gvec = gvec(1:G.griddim);
+   assert (all(size(gvec) == [1,G.griddim]));
+   <span class="keyword">if</span> all([isempty(opt.bc)   , <span class="keyword">...</span>
+           isempty(opt.src)  , ~(norm(gvec) &gt; 0)]),
+       <span class="keyword">if</span> ~isfield(fluid,<span class="string">'pc'</span>)
+           warning(msgid(<span class="string">'DrivingForce:Missing'</span>),                   <span class="keyword">...</span>
+             [<span class="string">'No external driving forces present in model--'</span>, <span class="keyword">...</span>
+              <span class="string">'state remains unchanged.\n'</span>]);
+       <span class="keyword">end</span>
+   <span class="keyword">end</span>
+
+   <span class="comment">% Preliminaries: set various constants and maps</span>
+   nf     = G.faces.num;<span class="comment">%number of faces</span>
+   nc     = G.cells.num;<span class="comment">%number of cells</span>
+   cf     = G.cells.faces(:,1);<span class="comment">% faceses of a given cells</span>
+   nhf    = numel(cf);<span class="comment">%number of repeated faces of cells.(faces willbe repeated excepts the boundary faces)</span>
+   hf2cn  = gridCellNo(G);
+
+   iface  = all(G.faces.neighbors ~= 0, 2);
+   eface  = ~iface;
+   ni     = G.faces.neighbors(iface,:)   ;
+
+   <span class="comment">% Define effective face transmissibility as harmonic average of</span>
+   <span class="comment">% viscosity-weighted one-sided transmissibilities.</span>
+   [mu, rho] = fluid.properties(state);
+   s         = fluid.saturation(state);
+   kr        = fluid.relperm(s,state);
+   <span class="comment">%</span>
+
+   <span class="keyword">if</span> isfield(fluid, <span class="string">'pc'</span>),
+       pc = fluid.pc(state);
+       po = state.pressure + pc;
+   <span class="keyword">else</span>
+       po = state.pressure;
+   <span class="keyword">end</span>
+   <span class="comment">%upsteaming the internal faces mobilities,</span>
+   <span class="comment">%krUp = kr(iface,:);</span>
+
+   mob    = bsxfun(@rdivide, kr, mu);
+   avmob  = (mob(ni(:,1),1) + mob(ni(:,2),1))/2;<span class="comment">%arthimetic averaged mobilities at internal faces</span>
+   totmob = sum(mob,2);
+   omega  = sum(bsxfun(@times, mob, rho), 2) ./ totmob;
+   halfTran = simpleComputeTransModefiedold(G, rock,totmob) ;
+
+   assert(numel(halfTran.hTM) == numel(hf2cn), <span class="keyword">...</span>
+      [<span class="string">'Expected one one-sided transmissibility for each '</span>, <span class="keyword">...</span>
+      <span class="string">'half face (=%d), but got %d.'</span>], numel(hf2cn), numel(halfTran.hTM));
+   TM = halfTran.hT.*totmob(hf2cn);
+   T  = 1 ./ accumarray(cf, 1 ./TM, [G.faces.num, 1]); <span class="comment">% full transmisibility with mobility</span>
+   TP = 1 ./ accumarray(cf, 1 ./halfTran.hT, [G.faces.num, 1]); <span class="comment">% full transmisibility without mobility</span>
+
+   <span class="comment">% Compute gravity contribution to right-hand side</span>
+   cvec = G.faces.centroids(cf, :) - G.cells.centroids(hf2cn, :);
+   gp   = rho(1) .* (cvec * gvec.')  ;
+   clear <span class="string">cvec</span>;
+
+   <span class="comment">% Initiatlize right-hand side</span>
+   rhs1 = zeros(nhf, 1);
+   rhs2 = zeros(nc,  1);
+   rhs3 = zeros(nf,  1);
+
+   <span class="comment">% Source terms</span>
+   src = opt.src;
+   <span class="keyword">if</span> ~isempty(src),
+      <span class="comment">% Compatibility check on cell numbers for source terms</span>
+      assert (max(src.cell) &lt;= nc &amp;&amp; min(src.cell&gt;0), <span class="keyword">...</span>
+         <span class="string">'Source terms refer to cell not existant in grid.'</span>);
+      <span class="comment">% Sum source terms inside each cell and add to rhs</span>
+      s  = accumarray(src.cell, src.rate);
+      ii = accumarray(src.cell, 1)&gt; 0;
+
+      rhs2(ii) = rhs2(ii) + s(ii);
+   <span class="keyword">end</span>
+   <span class="comment">% Boundary conditions</span>
+   Dface    = false([nf, 1]);
+   DfaceVal = [];
+   bc       = opt.bc;
+
+   <span class="comment">%</span>
+   <span class="keyword">if</span> ~isempty(bc),
+       <span class="comment">% Compatibility checks</span>
+      assert (max(bc.face) &lt;= nf &amp;&amp; min(bc.face) &gt; 0, <span class="keyword">...</span>
+         <span class="string">'Boundary condition refer to face not existant in grid.'</span>);
+      assert (all(accumarray(bc.face, 1, [nf, 1]) &lt;= 1), <span class="keyword">...</span>
+         <span class="string">'There are repeated faces in boundary condition.'</span>);
+
+      <span class="comment">% Pressure (Dirichlet) boundary conditions.</span>
+      <span class="comment">% Extract the faces marked as defining pressure conditions. Define a</span>
+      <span class="comment">% local numbering (map) of the face indices to the pressure condition</span>
+      <span class="comment">% values.</span>
+      is_press = strcmpi(<span class="string">'pressure'</span>, bc.type);
+      pface    = bc.face(is_press);
+      DfaceVal = bc.value(is_press);
+      map      = sparse(double(pface), 1, 1:numel(pface));
+
+      <span class="comment">% Mark the faces as having pressure boundary conditions.  This</span>
+      <span class="comment">% information will be used to eliminate known pressures from the</span>
+      <span class="comment">% resulting system of linear equations.</span>
+      Dface(pface) = true;
+
+      <span class="comment">% Enter Dirichlet conditions into system right hand side. Relies</span>
+      <span class="comment">% implictly on boundary faces being mentioned exactly once in</span>
+      <span class="comment">% G.cells.faces(:,1).</span>
+      ind       = Dface(cf);
+
+      rhs1(ind) = -DfaceVal(map(G.cells.faces(ind,1)));
+      <span class="comment">%</span>
+      clear <span class="string">ind</span>
+      <span class="comment">% Reorder Dirichlet conditions according to SORT(pface) so that we</span>
+      <span class="comment">% later can set 'X(Dface) = DfaceVal' even when ISLOGICAL(Dface).</span>
+      DfaceVal = DfaceVal(map(Dface));
+
+      <span class="comment">% Flux (Neumann) boundary conditions.</span>
+      <span class="comment">% Note negative sign due to bc.value representing INJECTION flux.</span>
+      is_flux = strcmpi(<span class="string">'flux'</span>, bc.type);
+      rhs3(bc.face(is_flux)) = -bc.value(is_flux);
+   <span class="keyword">end</span>
+   assert(~any(DfaceVal &lt; 0), <span class="string">'Pressure conditions should always be non-negative'</span>);
+
+   <span class="comment">% Add gravity contribution to all internal faces and faces with</span>
+   <span class="comment">% Dirichlet boundary conditions</span>
+
+   sgn = 2*(G.faces.neighbors(cf, 1) == hf2cn) - 1;
+   j   = iface(cf) | Dface(cf);
+
+
+   faceGrav  = accumarray(cf(j), gp(j).*sgn(j), [nf, 1]);
+</pre><pre class="codeoutput error">Not enough input arguments.
+
+Error in simpleIncompTPFAModefiedold (line 97)
+   assert (1 &lt;= G.griddim &amp;&amp; G.griddim &lt; 4);
+</pre><h2>Upwinding<a name="3"></a></h2><pre class="codeinput">   dpo  = po(ni(:,2)) - po(ni(:,1)) - faceGrav(iface);
+   upco = (double(dpo)&lt;=0);
+   mup  = Simpleupstream(G,upco, mob(:,2));<span class="comment">%#OK., upwided oil mobility</span>
+   pw   = state.pressure;
+   dpw  = pw(ni(:,2)) - pw(ni(:,1)) - faceGrav(iface);
+   upcw = (double(dpw)&lt;=0);
+
+   wmup = Simpleupstream(G,upcw, mob(:,1));
+   Uptotmob = mup + wmup;
+</pre><h2>Right hand side<a name="4"></a></h2><p>no problem on T as long as we have homogeneous <a href="DBC">DBC</a></p><pre class="codeinput">   rhs = accumarray(hf2cn, -T(cf).*(sgn.*faceGrav(cf) + rhs1), [nc, 1]) + <span class="keyword">...</span>
+      rhs2 + accumarray(hf2cn, -rhs3(cf), [nc, 1]);
+
+   clear <span class="string">rhs1</span> <span class="string">rhs2</span> <span class="string">sgn</span>;
+</pre><h2>Capillar pressure<a name="5"></a></h2><pre class="codeinput">   <span class="keyword">if</span> isfield(fluid, <span class="string">'pc'</span>),
+<span class="comment">%        ijk      = gridLogicalIndices(G);</span>
+<span class="comment">%        upInd    = (ijk{1} &gt; nc/2);</span>
+<span class="comment">%        pc = zeros(nc,1);</span>
+<span class="comment">%        if any(~upInd)</span>
+<span class="comment">%            pc(~upInd) = fluid.pcl(state.s(~upInd,1))</span>
+<span class="comment">%        end</span>
+
+
+
+
+       po  = state.pressure + pc;
+       dpo = po(ni(:,2)) - po(ni(:,1)) - faceGrav(iface);
+
+       upco = (double(dpo)&lt;=0);
+       mup = Simpleupstream(G,upco, mob(:,2));
+       <span class="keyword">if</span> any(abs(pc) &gt; 0),
+           PcFace =  accumarray(find(iface),<span class="keyword">...</span>
+               mup.*TP(iface).*(pc(ni(:,2)) - pc(ni(:,1))), [nf, 1]);
+           <span class="comment">%PcFace(eface) = mob(cNo,2).*pc(cNo);</span>
+           neighbors = getNeighbourship(G, <span class="string">'Topological'</span>, true);
+           internal = all(neighbors~=0, 2);
+           ic1  = neighbors(internal,1);
+           ic2  = neighbors(internal,2);
+           CapPressure  = accumarray([ic1; ic2], [PcFace(internal); -PcFace(internal)], size(po))     ;
+           <span class="comment">%CapPressure(cNo) = CapPressure(cNo) + sgn.*mob(cNo,2).*TP(bc.face).*( - pc(cNo));</span>
+           clear <span class="string">mup</span> <span class="string">ic1</span> <span class="string">ic2</span> <span class="string">cNo</span> <span class="string">sgn</span>;
+           rhs = rhs + CapPressure;
+       <span class="keyword">end</span>
+   <span class="keyword">end</span>
+</pre><h2>Add up internal face transmissibilities plus Dirichlet pressure faces for each cell.<a name="6"></a></h2><pre class="codeinput">   d  = accumarray(reshape(G.faces.neighbors(iface,:), [], 1), repmat(Uptotmob.*TP(iface), [2,1]),  [nc, 1]);
+   <span class="comment">% Assemble coefficient matrix for internal faces.  Boundary conditions</span>
+   <span class="comment">% may introduce additional diagonal entries.</span>
+
+   I  = [G.faces.neighbors(iface,1); G.faces.neighbors(iface,2); (1:nc)'];
+   J  = [G.faces.neighbors(iface,2); G.faces.neighbors(iface,1); (1:nc)'];
+   V  = [-Uptotmob.*TP(iface); -Uptotmob.*TP(iface); d];
+
+   <span class="keyword">if</span> any(Dface)
+       cNo = sum(G.faces.neighbors(bc.face(is_press),:), 2);
+       <span class="comment">%   .*halfTran.hT(Dface(cf)</span>
+       B = sparse(cNo,cNo,totmob(cNo).*TP(pface),nc,nc);
+       A  = sparse(double(I), double(J), V, nc, nc); <span class="comment">%accumulate V in I,J indecies</span>
+       A = A+B;
+   <span class="keyword">elseif</span> ~any(Dface)
+
+       A  = sparse(double(I), double(J), V, nc, nc); <span class="comment">%accumulate V in I,J indecies</span>
+
+       <span class="comment">% If there are no Dirichlet boundary conditions, do a fix to ensure that</span>
+       <span class="comment">% we have a solvable system</span>
+       <span class="keyword">if</span> A(1) &gt; 0,
+           A(1) = 2*A(1);
+       <span class="keyword">else</span>
+         [j, j] = max(diag(A));  <span class="comment">%#ok</span>
+         A(j,j) = 2*A(j,j);
+       <span class="keyword">end</span>
+   <span class="keyword">end</span>
+   clear <span class="string">I</span> <span class="string">J</span> <span class="string">V</span> <span class="string">d</span>;
+   <span class="comment">% Solve the flow problem</span>
+   p = opt.LinSolve(A, rhs);
+   clear <span class="string">A</span> <span class="string">rhs</span>;
+
+   <span class="comment">% Reconstruct face pressures and fluxes.</span>
+   fpress =  <span class="keyword">...</span>
+      accumarray(cf, (p(hf2cn) + gp).*TM, [G.faces.num,1])./ <span class="keyword">...</span>
+      accumarray(cf, TM, [G.faces.num,1]);
+
+   <span class="comment">% Recompute face pressure at Neumann faces</span>
+
+   b         = any(G.faces.neighbors==0, 2);
+   fpress(b) = fpress(b) - rhs3(b)./T(b);
+   <span class="comment">% Reset correct values at Dirichlet faces</span>
+   fpress(Dface) = DfaceVal;
+
+   <span class="comment">% Compute face fluxes for internal faces</span>
+   <span class="comment">%ni   = G.faces.neighbors(iface,:);</span>
+
+   pw   = p;
+   dpw  = pw(ni(:,2)) - pw(ni(:,1)) - faceGrav(iface);
+
+   upcw = (double(dpw)&lt;=0);
+   mup  = Simpleupstream(G,upcw, mob(:,1));
+
+
+   flux = -accumarray(find(iface),<span class="keyword">...</span>
+      mup.*TP(iface).*(pw(ni(:,2)) - pw(ni(:,1)) - faceGrav(iface)), [nf, 1]);
+
+   <span class="comment">%Compute fluxes for external faces using Darcy's law</span>
+   sgn         = 2*(G.faces.neighbors(eface,2)==0)-1;
+   cNo         = sum(G.faces.neighbors(eface,:), 2); <span class="comment">% cell number corrosponding to outer faces</span>
+
+   faceGrav    = accumarray(cf, gp, [nf, 1]);
+   flux(eface) = -sgn.*mob(cNo,1).*TP(eface).*(fpress(eface) - pw(cNo) - faceGrav(eface));
+
+
+   clear <span class="string">sgn</span>;
+</pre><h2>---------------------------------------------------------------------<a name="7"></a></h2><p>adding up the boundary fluxes to the system</p><pre class="codeinput">   <span class="keyword">if</span> ~isempty(bc)
+       sgn = 2*(G.faces.neighbors(bc.face,2)==0)-1   ;
+       HT  = TP(bc.face);
+
+       bcFace = G.faces.neighbors(bc.face,:); <span class="comment">%boundary faces neighbors</span>
+       assert(~any(all(bcFace &gt; 0, 2)),<span class="string">'bc on internal boundary'</span>);
+       ss = sum(bc.sat, 2);
+       <span class="comment">% Values should either sum to zero or one</span>
+       assert(all(ss - 1 &lt; sqrt(eps) | ss &lt; sqrt(eps)));
+
+       BCcells = sum(bcFace, 2);<span class="comment">%Cells related to the boundary faces</span>
+       nbc = numel(bc.face);
+
+       cellToBCMap = sparse((1:nbc)', BCcells, 1, nbc, G.cells.num);
+       BCTocellMap = cellToBCMap';
+       qBcw = zeros(nbc,1);
+       <span class="comment">%extract boundary cell pressures and other preperties</span>
+       pBc   = cellToBCMap*pw;
+       sBc   = cellToBCMap*state.s;
+       mobBc = cellToBCMap*mob ;
+       <span class="comment">%rhoBc = rho(BCcells,:);</span>
+
+       sat   = bc.sat;
+       NoSat = all(sat == 0, 2);
+       hasNoSat = any(NoSat);
+
+       <span class="keyword">if</span> any(strcmpi(G.type, <span class="string">'topSurfaceGrid'</span>))
+           dzbc = model.gravity(3) * (G.cells.z(BCcells) - G.faces.z(bc.face));
+       <span class="keyword">else</span>
+           g = gravity();
+           g = g(1:G.griddim);
+           dz = G.cells.centroids(BCcells, :) - G.faces.centroids(bc.face,:);
+           dzbc = dz*g';
+       <span class="keyword">end</span>
+       <span class="comment">% If no saturations are defined, we explicitly set it to mirror the</span>
+       <span class="comment">% cell values on the other side of the interface</span>
+       <span class="keyword">if</span> hasNoSat
+           sBC = double(sBc);
+           sat(NoSat, :) = sBC(NoSat,:);
+       <span class="keyword">end</span>
+       isP = reshape(is_press,[],1)   ;
+       dP = bc.value(isP) - pBc(isP) + rho(1).*dzbc(isP);
+
+       <span class="comment">% Determine if pressure bc are injecting or producing</span>
+       injDir = dP &gt; 0; <span class="comment">%if satisfied, the flow is from the boundary to the cell else from the cell to the boundary</span>
+
+       injP = isP;
+       injP(isP) = injDir;
+       <span class="keyword">if</span> any(~injDir)
+           <span class="comment">% Write out the flux equation over the interface</span>
+           subs = isP &amp; ~injP;
+           qBcw(subs) = -sgn(subs).*mobBc(subs,1).*HT(subs).*dP(~injDir);
+           clear <span class="string">subs</span>
+       <span class="keyword">end</span>
+       <span class="comment">%</span>
+       mobBcF  = bsxfun(@rdivide, fluid.relperm(bc.sat ,state), mu);
+       totMob = sum(double(mobBcF),2);
+       <span class="keyword">if</span> any(injDir)
+           <span class="comment">% In this case, pressure drives flow inwards, we get the injection rate</span>
+           <span class="comment">% determined by the sat field</span>
+           subs = isP &amp; injP;
+
+           qBcw(subs) = -sgn(subs).*totMob(subs).*HT(subs).*dP(injDir);
+
+           clear <span class="string">subs</span>
+       <span class="keyword">end</span>
+       <span class="comment">%-----------------------------------------------------------------------</span>
+       <span class="comment">% Treat flux / Neumann BC</span>
+       injNeu = bc.value &gt; 0;
+       subs = ~isP &amp;  injNeu;
+       <span class="keyword">if</span> any(subs)
+           <span class="comment">% Injection</span>
+           <span class="comment">%q_s(subs) = bc.value(subs).*sat(subs, i);</span>
+           qBcw(subs) = bc.value(subs);<span class="comment">%.*sat(subs, 1);%./bBC(subs);</span>
+       <span class="keyword">end</span>
+       subs = ~isP &amp; ~injNeu;
+       <span class="keyword">if</span> any(subs)
+           <span class="comment">% Production fluxes, use fractional flow of total mobility to</span>
+           <span class="comment">% estimate how much mass will be removed.</span>
+           f   = mobBcF(subs)./totMob(subs);
+           tmp = f.*bc.value(subs);
+
+           <span class="comment">%q_s(subs) = tmp;</span>
+           qBcw(subs) = tmp;<span class="comment">%./bBC(subs);</span>
+       <span class="keyword">end</span>
+       flux(bc.face) = qBcw;
+       <span class="comment">% Extract the corresponding state variables</span>
+       state.pressure  = p ;
+       state.flux(:)   = flux;
+   <span class="keyword">end</span>
+</pre><pre class="codeinput"><span class="keyword">end</span>
+</pre><p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2016a</a><br></p></div><!--
+##### SOURCE BEGIN #####
+function [state] = simpleIncompTPFAModefiedold(state, G, rock, fluid, varargin)
+%Solve incompressible flow problem (fluxes/pressures) using TPFA method.
+%
+% SYNOPSIS:
+%   state = simpleIncompTPFA(state, G, hT, fluid)
+%   state = simpleIncompTPFA(state, G, hT, fluid, 'pn1', pv1, ...)
+%
+% DESCRIPTION:
+%   This function assembles and solves a (block) system of linear equations
+%   defining interface fluxes and cell pressures at the next time step in a
+%   sequential splitting scheme for the reservoir simulation problem
+%   defined by Darcy's law and a given set of external influences (sources,
+%   and boundary conditions).
+%
+%   This function uses a two-point flux approximation (TPFA) method with
+%   minimal memory consumption within the constraints of operating on a
+%   fully unstructured polyhedral grid structure.
+%
+% REQUIRED PARAMETERS:
+%   state  - Reservoir solution structure either properly
+%            initialized from function 'initResSol'
+%
+%   G, hT  - Grid and half-transmissibilities as computed by the function
+%            'computeTrans'.
+%
+%   fluid  - Fluid object as defined by function 'initSimpleFluid'.
+%
+% OPTIONAL PARAMETERS (supplied in 'key'/value pairs ('pn'/pv ...)):
+%   bc     - Boundary condition structure as defined by function 'addBC'.
+%            This structure accounts for all external boundary conditions to
+%            the reservoir flow.  May be empty (i.e., bc = struct([])) which
+%            is interpreted as all external no-flow (homogeneous Neumann)
+%            conditions.
+%
+%   src    - Explicit source contributions as defined by function
+%            'addSource'.  May be empty (i.e., src = struct([])) which is
+%            interpreted as a reservoir model without explicit sources.
+%
+%   LinSolve - Handle to linear system solver software to which the
+%            fully assembled system of linear equations will be passed.
+%            Assumed to support the syntax
+%
+%              x = LinSolve(A, b)
+%
+%            in order to solve a system Ax=b of linear equations.
+%            Default value: LinSolve = @mldivide (backslash).
+%
+% RETURNS:
+%   state - Update reservoir solution structure with new values
+%           for the fields:
+%              - pressure REPLACE_WITH_DASH_DASH Pressure values for all cells in the
+%                            discretised reservoir model, 'G'.
+%              - facePressure REPLACE_WITH_DASH_DASH
+%                            Pressure values for all interfaces in the
+%                            discretised reservoir model, 'G'.
+%              - flux     REPLACE_WITH_DASH_DASH Flux across global interfaces corresponding to
+%                            the rows of 'G.faces.neighbors'.
+%
+% NOTE:
+%   If there are no external influences, i.e., if all of the structures
+%   'bc' and 'src' are empty and there are no effects of gravity, then the
+%   input value 'xr' is returned unchanged and a warning is printed in the
+%   command window. This warning is printed with message ID
+%
+%           'incompTPFA:DrivingForce:Missing'
+%
+%
+% SEE ALSO:
+%   computeTrans, addBC, addSource, addWell, initSingleFluid, initResSol,
+%   initWellSol.
+
+%{
+Copyright 2009-2016 SINTEF ICT, Applied Mathematics.
+
+This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
+
+MRST is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+MRST is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with MRST.  If not, see <http://www.gnu.org/licenses/>.
+%}
+
+   opt = struct('bc', [], 'src', [], ...
+                'LinSolve',     @mldivide, ...
+                'pc_form'     , 'wetting');
+            
+   opt = merge_options(opt, varargin{:});
+   % Sanity checks on grid and gravity term
+   assert (1 <= G.griddim && G.griddim < 4);
+   gvec = gravity();
+   gvec = gvec(1:G.griddim);
+   assert (all(size(gvec) == [1,G.griddim]));
+   if all([isempty(opt.bc)   , ...
+           isempty(opt.src)  , ~(norm(gvec) > 0)]),
+       if ~isfield(fluid,'pc')
+           warning(msgid('DrivingForce:Missing'),                   ...
+             ['No external driving forces present in modelREPLACE_WITH_DASH_DASH', ...
+              'state remains unchanged.\n']);
+       end
+   end
+
+   % Preliminaries: set various constants and maps
+   nf     = G.faces.num;%number of faces 
+   nc     = G.cells.num;%number of cells
+   cf     = G.cells.faces(:,1);% faceses of a given cells
+   nhf    = numel(cf);%number of repeated faces of cells.(faces willbe repeated excepts the boundary faces)
+   hf2cn  = gridCellNo(G);
+   
+   iface  = all(G.faces.neighbors ~= 0, 2);
+   eface  = ~iface;
+   ni     = G.faces.neighbors(iface,:)   ;
+ 
+   % Define effective face transmissibility as harmonic average of
+   % viscosity-weighted one-sided transmissibilities.
+   [mu, rho] = fluid.properties(state);
+   s         = fluid.saturation(state);
+   kr        = fluid.relperm(s,state);
+   % 
+  
+   if isfield(fluid, 'pc'),
+       pc = fluid.pc(state);
+       po = state.pressure + pc;
+   else 
+       po = state.pressure;
+   end
+   %upsteaming the internal faces mobilities,
+   %krUp = kr(iface,:);
+
+   mob    = bsxfun(@rdivide, kr, mu);
+   avmob  = (mob(ni(:,1),1) + mob(ni(:,2),1))/2;%arthimetic averaged mobilities at internal faces
+   totmob = sum(mob,2);   
+   omega  = sum(bsxfun(@times, mob, rho), 2) ./ totmob;
+   halfTran = simpleComputeTransModefiedold(G, rock,totmob) ;
+   
+   assert(numel(halfTran.hTM) == numel(hf2cn), ...
+      ['Expected one one-sided transmissibility for each ', ...
+      'half face (=%d), but got %d.'], numel(hf2cn), numel(halfTran.hTM));
+   TM = halfTran.hT.*totmob(hf2cn);
+   T  = 1 ./ accumarray(cf, 1 ./TM, [G.faces.num, 1]); % full transmisibility with mobility 
+   TP = 1 ./ accumarray(cf, 1 ./halfTran.hT, [G.faces.num, 1]); % full transmisibility without mobility 
+   
+   % Compute gravity contribution to right-hand side   
+   cvec = G.faces.centroids(cf, :) - G.cells.centroids(hf2cn, :);   
+   gp   = rho(1) .* (cvec * gvec.')  ;
+   clear cvec;
+   
+   % Initiatlize right-hand side
+   rhs1 = zeros(nhf, 1);
+   rhs2 = zeros(nc,  1);
+   rhs3 = zeros(nf,  1);
+   
+   % Source terms
+   src = opt.src;
+   if ~isempty(src),
+      % Compatibility check on cell numbers for source terms
+      assert (max(src.cell) <= nc && min(src.cell>0), ...
+         'Source terms refer to cell not existant in grid.');
+      % Sum source terms inside each cell and add to rhs
+      s  = accumarray(src.cell, src.rate);
+      ii = accumarray(src.cell, 1)> 0;
+      
+      rhs2(ii) = rhs2(ii) + s(ii);
+   end
+   % Boundary conditions
+   Dface    = false([nf, 1]);
+   DfaceVal = [];
+   bc       = opt.bc;
+   
+   %
+   if ~isempty(bc),
+       % Compatibility checks
+      assert (max(bc.face) <= nf && min(bc.face) > 0, ...
+         'Boundary condition refer to face not existant in grid.');
+      assert (all(accumarray(bc.face, 1, [nf, 1]) <= 1), ...
+         'There are repeated faces in boundary condition.');
+      
+      % Pressure (Dirichlet) boundary conditions.
+      % Extract the faces marked as defining pressure conditions. Define a
+      % local numbering (map) of the face indices to the pressure condition
+      % values.
+      is_press = strcmpi('pressure', bc.type);
+      pface    = bc.face(is_press);
+      DfaceVal = bc.value(is_press);
+      map      = sparse(double(pface), 1, 1:numel(pface));
+     
+      % Mark the faces as having pressure boundary conditions.  This
+      % information will be used to eliminate known pressures from the
+      % resulting system of linear equations.
+      Dface(pface) = true;
+
+      % Enter Dirichlet conditions into system right hand side. Relies
+      % implictly on boundary faces being mentioned exactly once in
+      % G.cells.faces(:,1).
+      ind       = Dface(cf);      
+      
+      rhs1(ind) = -DfaceVal(map(G.cells.faces(ind,1)));
+      %
+      clear ind
+      % Reorder Dirichlet conditions according to SORT(pface) so that we
+      % later can set 'X(Dface) = DfaceVal' even when ISLOGICAL(Dface).
+      DfaceVal = DfaceVal(map(Dface));
+
+      % Flux (Neumann) boundary conditions.
+      % Note negative sign due to bc.value representing INJECTION flux.
+      is_flux = strcmpi('flux', bc.type);  
+      rhs3(bc.face(is_flux)) = -bc.value(is_flux);
+   end
+   assert(~any(DfaceVal < 0), 'Pressure conditions should always be non-negative');
+   
+   % Add gravity contribution to all internal faces and faces with
+   % Dirichlet boundary conditions  
+ 
+   sgn = 2*(G.faces.neighbors(cf, 1) == hf2cn) - 1;
+   j   = iface(cf) | Dface(cf);  
+   
+  
+   faceGrav  = accumarray(cf(j), gp(j).*sgn(j), [nf, 1]); 
+   %% Upwinding   
+   dpo  = po(ni(:,2)) - po(ni(:,1)) - faceGrav(iface);
+   upco = (double(dpo)<=0);   
+   mup  = Simpleupstream(G,upco, mob(:,2));%#OK., upwided oil mobility   
+   pw   = state.pressure;
+   dpw  = pw(ni(:,2)) - pw(ni(:,1)) - faceGrav(iface);
+   upcw = (double(dpw)<=0); 
+   
+   wmup = Simpleupstream(G,upcw, mob(:,1));
+   Uptotmob = mup + wmup;   
+   %% Right hand side
+   % no problem on T as long as we have homogeneous <DBC>
+   rhs = accumarray(hf2cn, -T(cf).*(sgn.*faceGrav(cf) + rhs1), [nc, 1]) + ...
+      rhs2 + accumarray(hf2cn, -rhs3(cf), [nc, 1]);
+   
+   clear rhs1 rhs2 sgn;   
+   %% Capillar pressure
+   if isfield(fluid, 'pc'),
+%        ijk      = gridLogicalIndices(G);
+%        upInd    = (ijk{1} > nc/2);
+%        pc = zeros(nc,1);
+%        if any(~upInd)
+%            pc(~upInd) = fluid.pcl(state.s(~upInd,1))
+%        end
+           
+         
+       
+
+       po  = state.pressure + pc;
+       dpo = po(ni(:,2)) - po(ni(:,1)) - faceGrav(iface);  
+       
+       upco = (double(dpo)<=0);   
+       mup = Simpleupstream(G,upco, mob(:,2));       
+       if any(abs(pc) > 0),
+           PcFace =  accumarray(find(iface),...
+               mup.*TP(iface).*(pc(ni(:,2)) - pc(ni(:,1))), [nf, 1]);
+           %PcFace(eface) = mob(cNo,2).*pc(cNo);
+           neighbors = getNeighbourship(G, 'Topological', true);
+           internal = all(neighbors~=0, 2);
+           ic1  = neighbors(internal,1);
+           ic2  = neighbors(internal,2);           
+           CapPressure  = accumarray([ic1; ic2], [PcFace(internal); -PcFace(internal)], size(po))     ;     
+           %CapPressure(cNo) = CapPressure(cNo) + sgn.*mob(cNo,2).*TP(bc.face).*( - pc(cNo));
+           clear mup ic1 ic2 cNo sgn;
+           rhs = rhs + CapPressure;
+       end
+   end   
+   %% Add up internal face transmissibilities plus Dirichlet pressure faces for each cell.
+   d  = accumarray(reshape(G.faces.neighbors(iface,:), [], 1), repmat(Uptotmob.*TP(iface), [2,1]),  [nc, 1]); 
+   % Assemble coefficient matrix for internal faces.  Boundary conditions
+   % may introduce additional diagonal entries. 
+   
+   I  = [G.faces.neighbors(iface,1); G.faces.neighbors(iface,2); (1:nc)'];
+   J  = [G.faces.neighbors(iface,2); G.faces.neighbors(iface,1); (1:nc)'];  
+   V  = [-Uptotmob.*TP(iface); -Uptotmob.*TP(iface); d]; 
+   
+   if any(Dface)
+       cNo = sum(G.faces.neighbors(bc.face(is_press),:), 2);
+       %   .*halfTran.hT(Dface(cf)    
+       B = sparse(cNo,cNo,totmob(cNo).*TP(pface),nc,nc);      
+       A  = sparse(double(I), double(J), V, nc, nc); %accumulate V in I,J indecies
+       A = A+B;
+   elseif ~any(Dface)        
+        
+       A  = sparse(double(I), double(J), V, nc, nc); %accumulate V in I,J indecies
+             
+       % If there are no Dirichlet boundary conditions, do a fix to ensure that
+       % we have a solvable system
+       if A(1) > 0,
+           A(1) = 2*A(1);
+       else
+         [j, j] = max(diag(A));  %#ok
+         A(j,j) = 2*A(j,j);
+       end
+   end
+   clear I J V d;
+   % Solve the flow problem
+   p = opt.LinSolve(A, rhs);
+   clear A rhs;
+
+   % Reconstruct face pressures and fluxes.
+   fpress =  ...
+      accumarray(cf, (p(hf2cn) + gp).*TM, [G.faces.num,1])./ ...
+      accumarray(cf, TM, [G.faces.num,1]);
+
+   % Recompute face pressure at Neumann faces
+   
+   b         = any(G.faces.neighbors==0, 2);
+   fpress(b) = fpress(b) - rhs3(b)./T(b);
+   % Reset correct values at Dirichlet faces
+   fpress(Dface) = DfaceVal;
+
+   % Compute face fluxes for internal faces
+   %ni   = G.faces.neighbors(iface,:);
+   
+   pw   = p;      
+   dpw  = pw(ni(:,2)) - pw(ni(:,1)) - faceGrav(iface);  
+   
+   upcw = (double(dpw)<=0);   
+   mup  = Simpleupstream(G,upcw, mob(:,1));
+   
+   
+   flux = -accumarray(find(iface),...
+      mup.*TP(iface).*(pw(ni(:,2)) - pw(ni(:,1)) - faceGrav(iface)), [nf, 1]);
+
+   %Compute fluxes for external faces using Darcy's law   
+   sgn         = 2*(G.faces.neighbors(eface,2)==0)-1;
+   cNo         = sum(G.faces.neighbors(eface,:), 2); % cell number corrosponding to outer faces
+   
+   faceGrav    = accumarray(cf, gp, [nf, 1]);
+   flux(eface) = -sgn.*mob(cNo,1).*TP(eface).*(fpress(eface) - pw(cNo) - faceGrav(eface));
+   
+    
+   clear sgn;
+   %% REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH-
+   % adding up the boundary fluxes to the system 
+   if ~isempty(bc)
+       sgn = 2*(G.faces.neighbors(bc.face,2)==0)-1   ;
+       HT  = TP(bc.face);
+       
+       bcFace = G.faces.neighbors(bc.face,:); %boundary faces neighbors   
+       assert(~any(all(bcFace > 0, 2)),'bc on internal boundary');
+       ss = sum(bc.sat, 2);
+       % Values should either sum to zero or one
+       assert(all(ss - 1 < sqrt(eps) | ss < sqrt(eps)));
+       
+       BCcells = sum(bcFace, 2);%Cells related to the boundary faces
+       nbc = numel(bc.face);
+       
+       cellToBCMap = sparse((1:nbc)', BCcells, 1, nbc, G.cells.num);
+       BCTocellMap = cellToBCMap';
+       qBcw = zeros(nbc,1);
+       %extract boundary cell pressures and other preperties
+       pBc   = cellToBCMap*pw;
+       sBc   = cellToBCMap*state.s;
+       mobBc = cellToBCMap*mob ;
+       %rhoBc = rho(BCcells,:);
+       
+       sat   = bc.sat;
+       NoSat = all(sat == 0, 2);
+       hasNoSat = any(NoSat);
+              
+       if any(strcmpi(G.type, 'topSurfaceGrid'))
+           dzbc = model.gravity(3) * (G.cells.z(BCcells) - G.faces.z(bc.face));
+       else
+           g = gravity();
+           g = g(1:G.griddim);
+           dz = G.cells.centroids(BCcells, :) - G.faces.centroids(bc.face,:);
+           dzbc = dz*g';
+       end
+       % If no saturations are defined, we explicitly set it to mirror the
+       % cell values on the other side of the interface
+       if hasNoSat
+           sBC = double(sBc);
+           sat(NoSat, :) = sBC(NoSat,:);
+       end
+       isP = reshape(is_press,[],1)   ;
+       dP = bc.value(isP) - pBc(isP) + rho(1).*dzbc(isP);   
+       
+       % Determine if pressure bc are injecting or producing
+       injDir = dP > 0; %if satisfied, the flow is from the boundary to the cell else from the cell to the boundary 
+       
+       injP = isP;
+       injP(isP) = injDir;
+       if any(~injDir)
+           % Write out the flux equation over the interface
+           subs = isP & ~injP;      
+           qBcw(subs) = -sgn(subs).*mobBc(subs,1).*HT(subs).*dP(~injDir);
+           clear subs
+       end
+       %
+       mobBcF  = bsxfun(@rdivide, fluid.relperm(bc.sat ,state), mu);
+       totMob = sum(double(mobBcF),2);
+       if any(injDir)
+           % In this case, pressure drives flow inwards, we get the injection rate
+           % determined by the sat field            
+           subs = isP & injP;      
+           
+           qBcw(subs) = -sgn(subs).*totMob(subs).*HT(subs).*dP(injDir);   
+           
+           clear subs
+       end
+       %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH-
+       % Treat flux / Neumann BC
+       injNeu = bc.value > 0;     
+       subs = ~isP &  injNeu;
+       if any(subs)
+           % Injection
+           %q_s(subs) = bc.value(subs).*sat(subs, i);
+           qBcw(subs) = bc.value(subs);%.*sat(subs, 1);%./bBC(subs);
+       end
+       subs = ~isP & ~injNeu;
+       if any(subs)
+           % Production fluxes, use fractional flow of total mobility to
+           % estimate how much mass will be removed.
+           f   = mobBcF(subs)./totMob(subs);
+           tmp = f.*bc.value(subs);
+           
+           %q_s(subs) = tmp;
+           qBcw(subs) = tmp;%./bBC(subs);
+       end
+       flux(bc.face) = qBcw;
+       % Extract the corresponding state variables   
+       state.pressure  = p ;
+       state.flux(:)   = flux;
+   end
+end
+ 
+##### SOURCE END #####
+--></body></html>
